@@ -1,0 +1,552 @@
+\documentclass[a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{authblk}
+\usepackage{fullpage}
+\linespread{1.213}
+
+\title{Measures of compositionality for artificial language experiments}
+\author{Kevin Stadler}
+%\affil{MPI Nijmegen}
+
+\usepackage{subfig}
+%\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{makecell}
+\renewcommand\theadfont{\bfseries}
+\usepackage{multirow}
+%\usepackage{caption}
+
+\usepackage[hidelinks]{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+
+\usepackage{amsthm}
+\newtheorem{definition}{Definition}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+\end{abstract}
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+The compositional nature of human communication systems is a frequently recurring topic in the literature on iterated learning models and artificial language learning more widely. This particular interest in how languages become more compositional through repeated learning and use~\citep[see e.g.][]{Selten2007,Kirby2008,Smith2012,Smith2013,Kirby2015,Beckner2017,Little2017,Motamedi2017} can partly be traced back to the trigger for the current flurry of experimental investigations in response to early computational models which demonstrated the cultural emergence of compositional syntax~\citep{Kirby2000,Brighton2002,Smith2003}.
+% TODO define signaling/signaling system
+While computational models often allow one to assess the compositional nature of communication systems by inspecting the underlying production system directly \citep[although not always, e.g.][]{Oliphant1997,Cangelosi1998,Spike2017}, this is not the case when dealing with human participants. In psychological experiments, the systematicity of a signaling system has to be inferred from a limited set of noisy, potentially contradicting productions from one or more participants.
+
+In response to this need for capturing the compositionality of a system of productions, several different measures and techniques of analysis have emerged from the experimental literature. The aim of this paper is to provide a review and comparison of these measures, and give suggestions on how they should be used. An R reference implementation of many of these measures is also provided~\citep{cultevo}.
+
+\section{Defining compositionality}\label{sec:definition}
+
+Before setting out to measure a property quantitatively, we first need to define just what exactly this property is.
+
+One well-known definition due to \citet{Montague1970} states that a language is compositional when it can be characterised by a grammar that maps combinations of form elements to combinations of meaning elements in a systematic way. A more formal paraphrase of this definition, due to \citet[p.751]{Partee2015}, makes explicit that this approach to characterising compositionality is deeply rooted in formal theories of language, by specifying that one can speak of compositionality when:
+\begin{definition}
+%a grammar should be able to be cast in the following form:
+the syntax is an algebra, the semantics is an algebra, and there is a homomorphism mapping elements of the syntactic algebra onto elements of the semantic algebra.
+\end{definition}
+
+Another classical definition of compositionality~\citep[after][p.65]{Szabo2012} is: % TODO often traced back to..Frege?
+
+\begin{definition}
+The meaning of a complex expression is a function of the meanings of its constituents and the way they are combined.
+\end{definition}
+
+%as paraphrased by \citet[p.144]{Spike2016thesis} is that a system is compositional when it is a \emph{homomorphism} between meaning and form, i.e.
+%\begin{definition}
+%a mapping from one structured space to another in which some aspect of the original structure is preserved.
+%\end{definition}
+
+%The former sets no limits to the possible forms of the `function' which evaluates the meaning of complex expressions, % or even limits it to *systematic* mappings while the latter leaves undefined just what `aspects' of the meaning and signal space structures should be preserved by the mapping between the two.
+% there are also parallels to `systematicity' as described in studies of iconicity
+
+What should be noted is that both of these definitions -- while superficially formal -- are still vastly underspecified, and much has been written on the topic, see \citet{Partee2015} for the former and \citet{Szabo2012} for a deconstruction of the latter definition. In contrast to these previous theoretical treatments, our dissection of compositionality will have a much narrower scope, with an eye on its applicability in analysing data from artificial language learning tasks.
+
+At the risk of falling short of its promissory title, this section will not attempt to derive a concise formal definition of compositionality. Rather, we will approach the subject of compositionality \emph{by example}. While it is quite straightforward to construct a signalling system that would be deemed perfectly compositional by most researchers, the present approach will highlight that signalling systems can deviate from this most canonical case of compositionality in a number of different ways which would be judged more or less critically depending both on one's theoretical persuasion as well as other factors, such as experimental paradigms.
+
+Before turning to specific examples, it is insightful to make explicit the underlying assumptions regarding the signaling system's meaning and form spaces that allow one to inquire about compositionality to begin with. First of all, a signalling system can only be compositional if both its meaning and form components are \emph{productive}, which is to say that they allow for \emph{combinations} of smaller, atomic units.
+On the meaning side of the signalling system this means that there has to be some set of atomic `meanings' or `meaning features' which can be (partially) combined into more complex ones in some well-defined way (at this point we will leave open the question of whether these combinations are sensitive to sequential or hierarchical relationships between the meanings).
+On the form side, equally, we require the notion of some irreducible inventory or `alphabet' whose elements can be combined to larger structures. In contrast to the rather intangible and abstract `meaning' side, one commonly assumes some well-defined sequential and/or parallel order of the individual constituents on the form side, often subject to the particular medium one is working with (e.g.~phonetic realisation, digital orthography, gesture).
+% FIXME dense sentence
+In the examples below we will, without loss of generality, refer to the atomic elements of the alphabets as \emph{characters}, and to a sequence of characters thought to consistently map onto some meaning feature(s) as a \emph{segment}. In most cases, segments are not identifiable directly but need to be inferred from the character sequences that participants produce for some combination of meaning features, which we will call the \emph{signals}.
+
+Having spelled out these assumptions, we can now turn to our examples, which go slightly beyond the minimum number of ingredients necessary for compositional signaling. Rather than allowing different atomic meaning features to combine freely, most experimental designs are based on complementary meaning realisations organised along orthogonal dimensions, such as \emph{colour}, \emph{shape} or \emph{number}. To make the connection to these experimental designs more clear we will also assume that the signaling systems whose compositionality we are trying to measure are of a similar design. In particular, our examples will be based on systems which map linear combinations of alphabetical strings onto pairs of meaning features which are organised along two meaning dimensions $\mathcal{F}_1, \mathcal{F}_2$, with two possible meaning realisations each, i.e.~$\mathcal{F}_1=\{A, B\}$, $\mathcal{F}_2=\{C, D\}$.
+% TODO should be noted that this is artificial - e.g. could combine/blend colours?
+
+\subsection{The extreme ends of the compositionality spectrum}
+
+However a measure of compositionality is constructed, most researchers will agree on the types of signalling systems that should get assigned to either extreme of the compositionality scale, exemplified in Table~\ref{tbl:examples}. As far as we can tell from the (very) limited data, the two-by-two signaling system in Table~\ref{tbl:examples}(a) ticks all conceivable boxes of a compositional system: every of the four meaning features is consistently and unambiguously expressed by the same form segment in all attested combinations of features. Moreover, the \emph{order} of segments is consistent too, expressing the value along meaning dimension $\mathcal{F}_1$ before $\mathcal{F}_2$. As a consequence, the entirety of the signal content is `accounted for' by virtue of being able to unambiguously assign every attested character in the signals to some meaningful segment.
+
+An entirely non-compositional system for the same meaning space is shown in Table~\ref{tbl:examples}(b). Here not a single of the occurring characters gives any clue as to which meaning features are encoded by any of the four signals, making it impossible to discern any meaningful segments (let alone speak of their ordering). In the absence of signals conveying any of the meaning features by themselves, it is not even possible to establish how any of the features might be signalled in isolation. The only conceivable `segmentation' in this case is one where the full signals are mapped onto each of the four pairwise combinations of meaning features, an approach that satisfies neither of our two definitions of compositionality.
+
+\newcommand{\siga}{a}
+\newcommand{\sigb}{e}
+\newcommand{\sigc}{sd}
+\newcommand{\sigd}{rt}
+\newcommand{\signalingtable}[4]{\def\arraystretch{1.2}
+\begin{tabularx}{0.35\textwidth}{cc|cc}
+& & \multicolumn{2}{c}{dimension $\mathcal{F}_2$} \\
+& & $C$ & $D$ \\
+\hline
+\multirow{2}{*}{dimension $\mathcal{F}_1$} & $A$ & \texttt{#1} & \texttt{#2} \\
+& $B$ & \texttt{#3} & \texttt{#4} \\
+\end{tabularx}}
+
+\begin{table}[htb]
+\centering
+\subfloat[][A perfectly compositional signaling system: individual meaning features are consistently encoded by the same segments, with the position of the segment determined by the meaning dimension that it encodes.]{\signalingtable{\siga\sigc}{\siga\sigd}{\sigb\sigc}{\sigb\sigd}}
+\qquad
+\subfloat[][An absolutely non-compositional (holistic) signaling system: not a single occurring character gives any indication of the individual meaning features encoded by the signal, or vice versa.]{\signalingtable{v}{lkjqw}{xxxx}{poso}}
+\caption{Examples of signaling systems for a combinatorial meaning space with four meaning features organised along two orthogonal dimensions, with two possible meaning realisations each: $\mathcal{F}_1=\{A, B\}$, $\mathcal{F}_2=\{C, D\}$.}
+\label{tbl:examples}
+\end{table}
+
+Between these two extremes though, there is plenty of leeway in whether and (how much) different kinds of deviations from the perfect norm are reflected in a measure of compositionality. %As it turns out, different compositionality measures that have been proposed are tuned to capture different aspects of compositionality while ignoring others. Before turning to some measures that been proposed and used in the literature, we will therefore discuss a number
+The next few sections will therefore discuss a number of problematic cases of signaling systems where the assessment of compositional structure is more or less arguable.
+
+\subsection{Constituent order and additive/transitive compositionality}
+
+Upon closer inspection of the signaling system specified by Table~\ref{tbl:examples}(a), one could call into question whether it fully satisfies the canonical, formal definition of compositionality. %Firstly, based on data of this type that is gathered by common experimental designs, we do not
+While the compound meaning of the signals is clearly `a function of their constituent elements', what about `the way in which they are combined'?
+In particular, while the relative order of segments that give information about each of the two meaning dimensions is consistent (the segment specifying the value of meaning dimension~$\mathcal{F}_1$ precedes that of~$\mathcal{F}_2$), that information is not necessary to arrive at a correct interpretation of any of the four signals.
+%So is it still a function of the way they are combined? % i.e. you need to make use of that information!
+%Does `systematicity' simply mean that order is \emph{consistent}, or do we also want to require that order has to \emph{matter} for semantic interpretation?
+
+Two slight variations from the perfectly compositional system of Table~\ref{tbl:examples}(a) can be seen in Table~\ref{tbl:ordering}. %The relative ordering of those segments, however, is inconsistent to various degrees.
+In Table~\ref{tbl:ordering}(a) one can identify the same unambiguous mapping from individual meaning features to their corresponding form segments, only that the constituent order in the bottom right cell is reversed. Intuitively, this might strike many people as a less `systematic' communication system. Nevertheless, based on Definition~2 this system is just as compositional as the perfectly compositional signalling system of Table~\ref{tbl:examples}(a), since constituent order does not affect the interpretation of the compound meaning in either.
+
+\begin{table}[htb]
+\centering
+\subfloat[][A signaling system where the ordering of constituent segments is not consistent.]{\signalingtable{\siga\sigc}{\siga\sigd}{\sigb\sigc}{\sigd\sigb}}
+\qquad
+%\subfloat[][A signaling system where the ordering of constituent segments is not strict, but appears systematic at a lower level.]{\signalingtable{\siga\sigc}{\siga\sigd}{\sigc\sigb}{\sigd\sigb}}
+\subfloat[][A signaling system where constituent order is \emph{meaningful}, in the sense that ordering information is in some cases \emph{necessary} for correct interpretation.]{\signalingtable{\siga\siga}{\siga\sigc}{\sigc\siga}{\sigc\sigc}}
+\caption{Two variations of the compositional signaling system of Table~\ref{tbl:examples}(a).}
+\label{tbl:ordering}
+\end{table}
+
+This rather innocuous and seemingly minor change to our uncontestedly compositional signalling system highlights how insufficient any formal and sweeping definition of compositionality is. The underlying question of whether (and in what way) a general measure of compositionality should take constituent order into account is not straightforward. The relevance of constituent order in natural language is typically taken for granted, often argued for by citing trivial examples of (English) sentences in which the subject and object switch places, leading to vastly different semantic interpretations.
+Languages with richer inflectional and agreement morphology, on the other hand, will often also display much more variable constituent order. In many such cases, different orderings can be used to signal pragmatic rather than semantic differences, although even that is not necessary.
+Quite generally, the role of constituent order is not even across all domains of a language~\citep{Arbib2012}. In English, for example, the ordering of multiple attributive adjectives in front of a noun is often not meaningful: the combined modificational power of an adjective cluster is here equal to the sum of its constituents, independently of how exactly they are put together. This order-insensitive type of compound meanings is referred to as `additive'~\citep[ch.4]{Cruse2004} or also `transitive' compositionality, in reference to the fact that the operation which combines individual meaning features fulfills the mathematical property of transitivity which states that the order in which the individual elements are combined makes no difference, i.e. that \texttt{A + B = B + A}. As we will see below, the measures discussed in the central section of this paper are primarily concerned with assessing whether the signaling systems under investigation are compositional in this simple additive sense.
+
+The variable importance of constituent order in assessing the compositionality of natural language is also reflected in the diversity of artificial language learning paradigms. In particular, the role of constituent order is also heavily constrained by the specific task at hand, a subject that not often raised explicitly in the context of individual experiments across the wide range of experimental designs falling under the artificial language learning moniker.
+Broadly speaking, most experimental designs falling under the artificial language learning moniker can be divided in two types: in the first, constituent order is either fixed, with the learning aspect focussed on lexical acquisition, e.g. \citet{Smith2010,Atkinson2015}. In most other cases, constituent order is not fixed but still does not play a crucial (which is to say disambiguating) role due to a strictly transitive meaning space~\citep[for a rare exception that combines both degrees of freedom see][]{Saldana2016}.
+
+The former case is uninteresting for the question of compositionality, since a pre-imposed fixed word ordering of segments presupposes compositional structure.
+In the latter case, constituent order \emph{can} be relevant even when dealing with a meaning system that is transitive, as demonstrated in Table~\ref{tbl:ordering}(b).
+Here, due to homonymy between the segments for meaning features in different meaning dimensions, ordering information is not just meaningful but, at least in some cases, even \emph{necessary} for the correct interpretation.\footnote{It should also be noted that, while perfectly functional in the case of both meaning dimensions being expressed, this system might be ambiguous when attempting to create signals that convey single meaning features. While uttering single meanings in isolation is a perfectly natural task in natural languages it not part of most artificial language learning designs, particularly those focussed on studying the initial emergence of compositional language.}
+
+This example demonstrates that the relevance of constituent order to assessing compositionality depends not just on the experimental design of the meaning space, but also by the potential for homonymy of meaningful segments, which is in turn contingent on whether (and how) the participants are constrained in their production of signals. If signal production is relatively unconstrained (e.g.~by free typing rather than choosing from a fixed set of responses), some (though not all) participants might introduce homonyms. As a consequence, even within one experiment constituent might be crucial to a compositional analysis of some of the resulting communication systems, but irrelevant to others.
+%The latter depends both on the possibility of free segment ordering, and to a lesser extent on the size of the character space and limits on the length of character sequences which, in combination with the number of meaning features that need to be encoded, might force homonymy on a system~\citep{Spike2016}.
+
+Most discussions of data obtained from artificial language learning experiments on the emergence of linguistic structure do not explicitly attribute meaningfulness to constituent order, at least not to the same degree as is the case in the grammatical analysis of natural languages.
+This makes sense in the light of the experimental designs which are commonly used: in the absence of clear asymmetries between the semantic roles of the different meaning dimensions, such an approach is sufficient in most cases.
+%An important conclusion to be drawn from this is that, in the absence of direct testing of how constituent order affects individuals' interpretation and processing, the question of whether ordering is meaningful is not just a matter of external data, but of a theory of how signals are processed. evidence for which is not provided because it goes beyond the scope of the task/experiment.
+Still, systematicity is often observed \citep[e.g.][]{Tamariz2008}
+
+The fact that a compositional language that is also perfectly systematic in its constituent order will strike many readers as `more compositional' signals another crucial aspect that will become more evident as we chase down more complex examples, namely that the linguist's assessment of `compositionality' of a small toy language is not a matter of narrow-minded formal assessment of a minimal data set, but one that comes with a truckload of conceptual baggage from their analysis and understanding of large-scale natural language systems.
+
+%this raises the question of the degree to which what is innocuously referred to as a `meaning' dimension really brings the conceptual (grammatical) baggage of a part-of-speech category with it.
+
+\subsection{Bounds on the complexity of `the way they are combined'}
+
+We have already seen that the lose formulation of compositional meaning being a function of `the way they are combined' is problematic. Does indifference to the way they are combined undermine the compositional nature of a system? Conversely, one can ask the question of whether overly \emph{complex} ways in which elements are combined undermine it too.
+
+See Table~\ref{tbl:complex}: linguists have heuristics for when a complex analysis of compositional systems is reasonable and when it isn't, but these are more rule of thumbs than formalised strategies that are set in stone.
+
+\begin{table}[htb]
+\centering
+\subfloat[][Simple infixes]{\signalingtable{\siga\sigc}{\siga\sigd}{\sigc\sigb}{\sigb\sigd}}
+\qquad
+\subfloat[][Ridiculous interleaving]{\signalingtable{\siga\sigc}{\siga\sigd}{\sigc\sigb}{\sigd\sigb}}
+\caption{Signaling systems where the ordering of constituent segments is regular but complex.}
+\label{tbl:complex}
+\end{table}
+
+\subsection{Allomorphy and irregularity}
+
+Irregularity could be explained due to frequency effects
+the presence of perfectly regular compositionality is subject to frequency effects, both empirically~(see e.g. the long line of work on irregular past tense forms in English), experimentally~\citep[e.g.][]{Beqa2008}, as well as computationally~\citep{Kirby2001}.
+
+\begin{table}[htb]
+\centering
+\subfloat[][A compositional signaling system that exhibits some degree of irregularity.]{\signalingtable{\siga\sigc}{\siga\sigd}{\sigb\sigc}{poso}}
+\qquad
+\subfloat[][The only table where we have single morpheme data]{TODO}
+\label{tbl:singlemorpheme}
+\end{table}
+
+%is the constituent order more \emph{strict}? We can't tell because we'd need more data to know whether the order is variable at all.
+
+%In terms of the reliability of our analysis, it should be noted that we are really clutching at straws here: While the minimal examples constructed here make it particularly hard to draw conclusive inferences, the analysis of many artificial language learning experiments is similar in that there is only very limited data to work with, often just one realisation per cell. % which doesn't allow an analysis of variability, a vast topic in itself~\citep{Weinreich196?,Tagliamonte2012,Ferdinand2013}
+%participants' knowledge should not be reduced to these single productions. It is well known that people have detailed statistical knowledge
+
+
+\subsection{Compositionality in the presence of unaccounted-for material}
+
+So far our examples have only dealt with signaling systems in which the question of attributing individual characters to meaning features was very clear cut: in all of the (arguably) compositional examples, all characters could be assigned to a \emph{segment}, which we will call a sequence of one or more characters which consistently co-occurs with a meaning feature. In the example of the fully holistic signaling system in Table~\ref{tbl:examples}(b), this question of segmentation was unambigous in a different way: with their being no way to map any of the substrings to any of the individual meaning features, all we could do is posit a mapping from the full-length signals to the compound meanings which, again, `accounts' for all of the characters in each signal (albeit in a non-compositional way).
+
+In many cases of artificial language learning, and particular in the study of the emergence of compositionality, one does not encounter such clear-cut examples. Instead, what one typically finds are but the seeds of more or less consistent mappings for some meaning features but not others.
+
+
+\begin{table}[htb]
+\centering
+%\subfloat[foo][Overlapping segments]{\signalingtable{\siga\sigc}{\siga\sigd}{\sigb a\sigc}{\sigb\sigd}}
+\subfloat[foo][Part consistent mappings, part noise]{\signalingtable{v}{lkjqw}{xxxx}{poso}}
+\qquad
+\subfloat[foo][Redundant material]{\signalingtable{\siga x\sigc}{\siga tz\sigd}{\sigb\sigc yyy}{\sigd\sigb asd}}
+\caption{Examples of compositional signaling systems with ambiguous segmentation.}
+\label{tbl:redundant}
+\end{table}
+
+This is a question of digitisation too: phonetic variation is discarded in our phonological transcription.
+
+The rules of thumb employed by grammar writers of natural languages are employed as means to achieve one goal: deriving reasonable segmentations which account for 100\% of the form material based on the meaning communicated (plus morphonological context effects). % discarding cases of variation, incidentally!
+In emerging languages, this is often not possible. Still, even in initially holistic languages, one can find more or less reliable co-occurrences between some character sequences and meaning features. Strict compositionality is really just an extreme case of that, where there is perfect correspondence between the occurrence of a segment and presence of a feature.
+
+But before one arrives at the perfect correspondence level, one might find intermediate levels that have some traces of compositionality in the signals but where there is extra (garbled, redundant) material around.
+
+% Note parallels to definitions of diagrammatic iconicity?
+
+<<dependencies, eval=FALSE, include=FALSE>>=
+install.packages("devtools")
+install.packages("cultevo")
+
+install.packages("gdata")
+install.packages("rmarkdown")
+@
+
+<<setup, echo=FALSE, message=FALSE>>=
+knitr::opts_chunk$set(echo=FALSE, cache=TRUE, fig.align="center", fig.pos="htbp", fig.height=9.5)
+library(lattice)
+trellis.par.set("strip.background", list(alpha=1, col="white"))
+library(latticeExtra)
+
+knitr::knit_hooks$set(crop=knitr::hook_pdfcrop)
+
+# dev.args=list(pointsize=10, family="serif")
+
+readdata <- function(filename) {
+  d <- gdata::read.xls(filename, header=TRUE, stringsAsFactors=FALSE)
+  d$Seen.0 <- -1 # complete cases with marked value
+  reshape(d, direction="long", timevar="Generation",
+    varying=do.call(function(...) paste(..., sep="."),
+      expand.grid(c("Form", "Seen"), 0:10)))
+}
+
+library(cultevo)
+# utils::adist
+testchains <- function(data, method="pearson", stringdistfun=normalisedlevenshteindists, trials=1000, ...)
+  lapply(unique(data$DiffusionChain), function(chain) {
+      m <- mantel.test(Form ~ Shape + Number + Color,
+        na.omit(subset(data, DiffusionChain == chain)), groups="Generation",
+        stringdistfun=stringdistfun, method=method, trials=trials, ...)
+      m$z <- (m$statistic - m$mean) / m$sd
+      m
+    })
+@
+
+<<data>>=
+small <- readdata("Supplemental_Data_Size12.xlsx")
+large <- readdata("Supplemental_Data_Size15.xlsx")
+@
+
+<<mantel>>=
+smalltests <- testchains(small)
+largetests <- testchains(large)
+#smalltestsspearman <- testchains(small, "spearman")
+#largetestsspearman <- testchains(large, "spearman")
+@
+
+\section{Measuring signal/meaning space homomorphism}\label{sec:mantel}
+
+% history: \citep{Brighton2000,Shillcock2001,Brighton2002,Smith2003esslli}
+
+The `measure of structure' made popular by \citet[p.10686]{Kirby2008} is very much in the spirit of Montague's definition of compositionality as a homomorphism between structured signal and meaning spaces. Crucially, this measure bypasses the question of how individual (simple) meanings map onto signals. Instead, it quantifies the regularity of the mapping between the internal structures of the signal and meaning spaces. %as measured by samples
+% based on pairwise distance correlation
+
+Assuming an experimental design in which a participant produces one signal for each of $n$~different (complex) meanings, one can construct two distance matrices of size $n\times n$. These matrices capture the pairwise distances between all of the attested signals and meanings according to some predefined distance metrics over strings and (complex) meanings respectively.
+
+Valid distance metrics will give rise to matrices which are symmetric, with 0s along their diagonal. Based on these distances, one can then calculate the correlation between the $n\cdot(n-1)/2$ pairs of meaning and string distances on one side of the matrix' diagonal.
+
+As a first step, this correlation coefficient captures the degree to which \emph{pairs of meanings which are similar to each other} map onto \emph{pairs of signals which are more similar to each other}.
+% versus the unlikely (and contrived) case of them 
+While the theoretical range of the coefficient is from -1 to 1, there is an additional problem in establishing whether an empirically determined level of correlation is in fact statistically significant. % given the underlying structures of each space
+The fact that the data points underlying its calculation are not independent~(the $n\cdot(n-1)/2$ pairs of values are derived from just $n$~signal-meaning pairs) means that there is potential for autocorrelation in the data and that the theoretical null distribution of the underlying correlation coefficient can not be used. To account for this, \citet{Kirby2008} fall back onto a correlation significance test based on randomising locations to determine spatial autocorrelation of measures in ecology~\citep[see][p.91 for an overview of its use in linguistics]{Cornish2011}.
+The basic idea is that, by repeatedly randomising the mapping from signals to meanings (equivalent to shuffling the columns and rows of one of the distance matrices in the same way) and calculating the respective correlations for these randomised distance matrices, one can generate an empirical null distribution of the correlation coefficient \emph{for that particular pairing of signals and meanings}. Under the assumption that the randomised correlations are normally distributed, one can then determine the z score of the actual correlation coefficient, which is nothing but its position relative to the randomised distribution expressed in standard deviations from its mean. This in turn can be used to get an estimate of the significance level of the established correlation, by determining the corresponding p value based on the Normal distribution.
+
+This randomisation and computation of the z score are really a second step to determine the significance of the correlation coefficient obtained earlier.
+%and, anyone who's ever laid their eyes on data knows that chains soon hit significance
+Nevertheless it is this z score, rather than the raw correlation, which has established itself as a measure of compositionality in analyses of artificial language learning tasks~\citep{Kirby2008,Carr2016,Beckner2017}. It should be stressed that the z score has a direct relationship with the \emph{significance level} of a measure, rather than expressing the \emph{effect size} of the measure itself. High z scores therefore do not necessarily capture high levels of compositionality, rather than high (statistical) confidence in the presence of \emph{some} level of compositionality~\citep[p.186]{Spike2016thesis}.
+
+<<ranges, eval=FALSE>>=
+print(range(sapply(smalltests, function(m) m$statistic)))
+print(range(sapply(largetests, function(m) m$statistic)))
+print(range(sapply(smalltestsspearman, function(m) m$statistic)))
+print(range(sapply(largetestsspearman, function(m) m$statistic)))
+#print(range(sapply(smalltestskendall, function(m) m$statistic)))
+#print(range(sapply(largetestskendall, function(m) m$statistic)))
+@
+
+\subsection{Analysis of the iterated learning data from \citet{Beckner2017}}
+
+To illustrate the relationship between the raw signal/meaning distance correlations and the derived z scores, Figure~\ref{fig:mantelanalysis} plots the two against each other for the total 24 chains (a 12 generations) reported by \citet{Beckner2017}, with computations based on the 25-27 signal-meaning pairs available for each generation. What is striking is that the two measures align perfectly in the majority of cases. It should be noted that no effort has been made to scale the two y axis to produce this overlap, including the near-alignment of the 0 marks. The alignment is simply a result of the plotting functions default behaviour of independently scaling each of the y axes to cover the entire range of values for each of the measures displayed. What this tells us is that, given identically sized data sets, 
+
+<<mantelanalysis, fig.height=6, fig.cap="Comparison of the z score as derived from the distribution of $r$s for 1000 random permutations~(black line, left axis) plotted against the raw value of Pearson's~$r$~(gray line, right axis) for the 24 iterated learning chains run by \\citet{Beckner2017}. The dotted gray line indicates the baseline of the correlation coefficient where there is no evidence for correlation (either positive or negative).">>=
+
+zrange <- range(sapply(c(smalltests, largetests), function(m) range(m$z)))
+rrange <- range(sapply(c(smalltests, largetests), function(m) range(m$statistic)))
+
+rightcol <- "darkgray"#  abline(h=1.96, lty=2)
+
+smalldata <- do.call(rbind, lapply(seq_along(smalltests), function(i) cbind(chain=i, smalltests[[i]])))
+largedata <- do.call(rbind, lapply(seq_along(largetests), function(i) cbind(chain=i, largetests[[i]])))
+smalldata$chain <- as.factor(smalldata$chain)
+largedata$chain <- as.factor(largedata$chain)
+
+defaultscales <- list(x=list(tck=1:0, at=1:11, labels=c(1, "", 3, "", 5, "", 7, "", 9, "", 11), rot=0, alternating=1), y=list(alternating=3)) # axs="r"
+
+# padding = relative amount of padding on either end of range
+plotcomparison <- function(f1, f2, data, ylim1=c(NA, NA), ylim2=c(NA, NA), ylab="z score", ylab2="Pearson's r", strip=FALSE, padding=0.05, ...) {
+  ylim1 <- ylim1*(1+padding) - rev(ylim1)*padding
+  ylim2 <- ylim2*(1+padding) - rev(ylim2)*padding
+  z <- xyplot(f1, data, type="l", scales=defaultscales, ylim=ylim1, xlab="generation", ylab=ylab, strip=strip, as.table=TRUE, ...)
+  r <- xyplot(f2, data, type="l", ylim=ylim2, ylab=ylab2, as.table=TRUE,
+   panel = function(...) {
+  #     panel.grid()
+       panel.xyplot(...)
+       panel.abline(h=0, lty=3)
+   })
+  doubley <- doubleYScale(z, r, add.ylab2=TRUE)
+  update(doubley, par.settings = simpleTheme(col = c("black", "darkgray")))
+}
+
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, smalldata, zrange, rrange, main="small training data set condition"), split=c(1, 1, 1, 2), more=TRUE)
+
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, largedata, zrange, rrange, main="large training data set condition"), split=c(1, 2, 1, 2))
+@
+
+While the z score transformation does not appear to affect the relative levels of compositionality much, it makes the absolute level of the measure both difficult to interpret as well as difficult to compare between experiments. As mentioned previously, the z score really captures the significance level of the correlation, rather than the actual structure preserved by the signals' mapping between the form and meaning spaces. As a consequence, differences in the \emph{size of the test sets} obtained by different experimental designs or conditions -- or even by testing differences between generations -- can therefore have an adverse effect on the interpretability of the measure~\citep{Cornish2009}. To illustrate this point, Figure~\ref{fig:doublesize} shows the raw correlation as well as z score for two data sets. The first is simply the data from one of the chains already plotted above~(chain~no.~2 in the `small' condition), while the measures in the central panel are based on a data set where, for every generation, each of the 27 signal-meaning pairs was duplicated, resulting in the correlation being computed based on distance matrices of size $54\times54$.
+
+<<doublemantel, cache=TRUE>>=
+pickchain <- 7
+onegrp <- subset(small, DiffusionChain == pickchain)
+
+dt <- rbind(cbind(size="single data", testchains(onegrp)[[1]]), cbind(size="doubled data", testchains(rbind(onegrp, onegrp))[[1]]), cbind(size="doubled data (adjusted)", testchains(rbind(onegrp, onegrp), omitzerodistances=TRUE)[[1]]))
+@
+
+<<doublesize, fig.height=2.2, fig.cap=paste("Comparison of the raw correlation and z score for the data set from iterated learning chain no.~", pickchain, " of the small learning data condition. Left: scores calculated from the original data set~(all pairwise distances between 27 signal-meaning pairs, $N=351$). Middle: scores calculated from a duplicated data set containing all signals twice~(all pairwise distances between 54 signal-meaning pairs, $N=1431$). Right: scores calculated from the duplicated data set under omission of pairs of signals from the distance matrix which have identical meaning components~($N=1404$).", sep=""), cache=FALSE>>=
+plotcomparison(z ~ group | size, statistic ~ group | size, dt, ylim1=range(dt$z), ylim2=1:2*range(dt$statistic), strip=TRUE) #+ as.layer(xyplot(sd ~ group | size, data=dt))
+@
+
+Despite the fact that both data sets specify the exact same mappings between forms and meanings (only with twice the amount of data in the latter case), the test results differ in two aspects:
+\begin{enumerate}
+\item Both the raw $r$ and z score exhibit a constant shift upwards from the 0 baseline.
+\item Moreover, the z score sees a linear boost (of about a factor of two) relative to the raw correlation coefficient.
+\end{enumerate}
+
+The latter effect is easily explained by what was just discussed: the randomised sample of correlation coefficients obtained from shuffling a larger data set of the same limited number of data points has a \emph{lower} standard deviation, which leads the normalised z-scores to exhibit a relative increase. This effect is expected for a measure of significance but not indicative of an actual increase in compositionality. This suggests that the z score should be avoided when attempting to compare compositionality levels between different-sized languages.%, or  experimental designs.
+
+While the present analysis might suggest that the relationship between the raw correlation and the z score is just be one of linear scaling, we can easily determine that this is not true: any correlation measure reaches its maximum value at~$1$, whereas the theoretical maximum value of z score increases as some function of its sample size (alongside other factors, in particular the pool of forms and meanings that the distance computations are based on). This same expansion of the z-score scale is also problematic at the lower end of the scale, where a z-score of greater than 1.96 (i.e.~further than two standard deviations from the mean) has been adopted as a benchmark of (some) compositional structure. But particularly in combination with the fact that the distance metric approach does not allow one to pinpoint which individual segments map onto which individual meanings, and the vast pool of character sequences which are candidates for such mappings, \citet{Spike2016thesis} has highlighted the risk of type I errors:
+
+``[T]he Mantel score which is typically used to measure the compositionality of model and experimental data is potentially severely compromised when systems exhibit duality of patterning. As shown above, inevitable random correlations between form and meaning spaces result in highly significant, but reasonably small correlations even when systems are completely holistic.''~\citep[p.195]{Spike2016thesis}.
+%The main problem here is that recent studies have chosen to use not the correlation measure (Pearson’s r), but the significance (z-score) as the structural metric
+
+The other notable difference between the first two panels of Figure~\ref{fig:doublesize} is that not just the z-score, but also the raw correlation measure increases, with its attested minimum value for the given data set jumping from 0 to almost $0.2$. This is a consequence of the naive approach to increasing the amount of data by simply doubling all signal-meaning pairs: the pairwise comparison between the duplicated data points introduces pairs of 0 meaning and 0 string edit distances into the distance matrices, which inflates the consequent computation of the correlation coefficient. Crucially, the same issue arises in the analysis of experimental designs in which more than one data point is sampled for a given meaning combination, such as in the case of interacting participants. When the overall degree of compositionality is computed based on the productions of all participants pooled, identical productions by different participants would inflate the compositionality score when really they are an indication of the fact that the participant have successfully \emph{aligned} their communication systems. % see also Spike2016thesis ch.4 on individual vs. alignment entropy
+In order to disentangle the effects of convergence in multiple-participant designs from those of compositionality, some researchers have adjusted the computation of the correlation coefficient to exclude cells of the pairwise distance matrices which have a meaning distance of zero. %~(this can be seen as an extension of the not-sampling-the-diagonal rule)
+The resulting scores using this approach can be seen in the right-most panel of Figure~\ref{fig:doublesize}, showing that the raw correlation coefficients are indeed identical to the ones found in the original data set, while the z-scores are still relatively inflated.
+
+\subsection{Summary}
+
+- it's a significance test for a minimum amount of compositionality \citep{Spike2016thesis}
+- beyond that, using z is unnecessary and confusing, just report r -- its values and boundaries are much more well-understood
+
+what to do with repeated measures for the same thing? exclude? In other words, identical repeated data points inflate the measure
+
+A general problem of the test is that the distance measure for the string and meaning spaces needs to be defined in advance. While string edit distances are well defined, the individual contribution of the different meaning dimensions is not necessarily predictable, making it necessary to establish them post-hoc. % particularly tricky when mixing discrete and continuous meaning spaces?
+
+To some extent the same is true for the string distances also: it doesn't actually look at the content of individual signals, and therefore has no account of expressing what the actual `segments' that are supposed to be compositional are~\citep{Tamariz2008}.
+This approach is therefore also affected by uneven morpheme lengths or shared phonotactic material.
+Measured levels might therefore be affected by collateral features such as the size of the character inventory etc.
+
+% TODO should be possible to construct a language which is not compositional yet still receives (rank) correlation 1?
+
+%2. which correlation coefficient to choose?
+%definitely not pearson (many ties in meaning distance, edit distances not normally distributed but strong edge effect at 0)
+
+Since \citet{Brighton2005} Pearson's is popular even though its assumptions (normally distributed values without ties) are particularly ill-suited
+
+Is it even necessary to do the randomisation, i.e. do we even need the random shuffling instead of just running a straightforward correlation test?
+
+%Compare the variance we get to that of the equivalent null distribution for:
+
+%Pearson: variance = v/(v-2) where v=degrees of freedom = n-2
+%A simple but reasonable assumption \citep[][par.34]{Fisher1990} is to use the normal distribution with mean 0 and variance $(n-1)^-1$ (reasonable unless n is very small)
+%Spearman null dist: $t= r*sqrt((n-2) / (1 - r^2)) \sim$ approx Student's t with n-2 df (same as Pearson)
+%Kendall approximation, Normal dist with variance: (2 * (2n + 5)) / (9n (n-1))
+
+\section{Segmentation-based measures}
+
+The approach discussed in the previous section aims to capture Montague's notion of a homomorphism between signal and meaning spaces. A larger set of measures have been devised in the spirit of Definition~2 which, instead of attempting to characterise the structure of the compositional signal and meaning spaces as a whole, tackle the question of the constituent elements of the (supposedly) compositional signals head on.
+While the different measures discussed in this section were devised independently of each other, they share a common approach to identifying meaningful segments based on probabilistic or information-theoretic properties, in particular on the regular co-occurrence of individual meaning features and segments. While there are some differences in the way in which the degree of co-occurrence is quantified, it is mainly some auxiliary assumptions regarding the type of compositionality~(as discussed in Section~\ref{sec:definition}) that sets them apart from each other.
+
+\subsection{RegMap}\label{sec:regmap}
+
+The first measure that was devised to explicitly tackle the Mantel test's inability to identify the constituent segments is \emph{RegMap}~\citep{Tamariz2008,Cornish2009}. As the name suggests, it captures the \emph{reg}ularity of \emph{map}pings between the value of a particular meaning dimension and a sub-part of the signal or, in other words ``the degree of confidence that a signal element consistently predicts a meaning element (for instance, the degree to which we can be sure that the beginning of the signal encodes color)''~\citep[p.196]{Cornish2009}.
+Crucially, the measure requires manual pre-segmentation, i.e. it is a simple mutual information measure between a meaning dimension and pre-defined sub-segments of the signal space.
+
+Rather than using an iterated learning chain structure, the data analysed by \citet{Tamariz2008} is based on individual learning conditions in which the languages to be learned have a systematic \texttt{CVCVCV} structure in which each of the three individual syllables is consistently associated with one of three orthogonal meaning dimensions.
+%Less predictive associations/correlations are included in the score as well by pair-wise comparison of all meaning and `signal dimensions'.
+As a consequence of this strong constraint, the measure has only seen limited re-use~\citep{Cornish2009}.
+
+Can be computed for every meaning dimensions separately.
+
+Pre-segmentation assumes that ordering is systematic but not necessarily meaningful?
+
+\subsection{Mutual information and conditional entropy}\label{sec:mi}
+
+mutual information or conditional entropy, or just basic mutual predictability of meaning features and form segments.
+\citep{Winters2015} uses conditional entropy
+
+
+\subsection{Mutual predictability}\label{sec:mp}
+
+For his analysis of the emergence of compositionality in computational simulations, \citet{Spike2016thesis} devised on a simple measure based on the mutual predictability~(\emph{mp} for short) between meaning features and character sequences. The approach makes no assumptions regarding the respective structures of the meaning or the signal space: for every meaning feature that is expressed by any of the signals, it simply considers all character sequences that are attested in any of the signals. For every meaning feature $m$, it identifies those segments $s$ which most predictably co-occur, i.e. it finds those segments which maximise
+
+$$P(m|s)\cdot P(s|m)\;.$$
+
+Information about the structure of the meaning space, such as their organisation along different dimensions, is discarded\footnote{See \citet[pp.175]{Spike2016thesis} for a full formal definition, and \citet{cultevo} for implementation details.}.
+
+<<smsegs>>=
+smallsegs <- lapply(unique(small$DiffusionChain), function(i) {
+  chain <- subset(small, DiffusionChain == i & !is.na(Form))
+  sm.compositionality(Form ~ Shape + Number + Color, chain, groups="Generation")
+  })
+largesegs <- lapply(unique(large$DiffusionChain), function(i) {
+  chain <- subset(large, DiffusionChain == i & !is.na(Form))
+  sm.compositionality(Form ~ Shape + Number + Color, chain, groups="Generation")
+})
+@
+
+<<smgraphs, fig.height=7, fig.cap=paste("Development of the SM measure across generations for all chains, learning size", c("small", "large")), cache=FALSE>>=
+
+# 11 rows, 12 columns - vector goes down ROWS first so that's along generations
+smalldata$SM <- as.vector(sapply(smallsegs, function(s) s$comp))
+largedata$SM <- as.vector(sapply(largesegs, function(s) s$comp))
+smrange <- range(c(smalldata$SM, largedata$SM))
+
+print(plotcomparison(SM ~ group | chain, statistic ~ group | chain, smalldata, ylab="mutual predictability", ylim1=smrange, ylim2=rrange, main="small training data set condition"), split = c(1, 1, 1, 2), more = TRUE)
+
+print(plotcomparison(SM ~ group | chain, statistic ~ group | chain, largedata, ylab="mutual predictability", ylim1=smrange, ylim2=rrange, main="large training data set condition"), split = c(1, 2, 1, 2))
+@
+
+<<alldata>>=
+
+smalldata <- do.call(rbind, mapply(function(i, sm, mantel)
+  data.frame(chain=as.factor(i), generation=sm$group, N=sm$N, SM=sm$comp, r=mantel$statistic, z=mantel$z), seq_along(smallsegs), smallsegs, smalltests, SIMPLIFY=FALSE))
+
+largedata <- do.call(rbind, mapply(function(i, sm, mantel)
+  data.frame(chain=as.factor(i), generation=sm$group, N=sm$N, SM=sm$comp, r=mantel$statistic, z=mantel$z), seq_along(largesegs), largesegs, largetests, SIMPLIFY=FALSE))
+
+alldata <- rbind(cbind(condition="small", smalldata),
+                 cbind(condition="large", largedata))
+
+# dodgy
+alldata$rdiff <- c(diff(alldata$r), NA)
+alldata$rdiff[alldata$generation == 10] <- NA
+alldata$zdiff <- c(diff(alldata$z), NA)
+alldata$zdiff[alldata$generation == 10] <- NA
+alldata$SMdiff <- c(diff(alldata$SM), NA)
+alldata$SMdiff[alldata$generation == 10] <- NA
+@
+
+<<correlations, fig.cap="Distribution of measures", fig.height=2>>=
+#par(mfrow=c(1, 3))
+#hist(smalldata$r, breaks=10)
+#hist(smalldata$z, breaks=10)
+#hist(smalldata$SM, breaks=10)
+#hist(log(smalldata$SM), breaks=10)
+correlation <- cor(alldata[c("r", "z", "SM")], method="spearman")
+@
+
+
+Figure~\ref{fig:smgraphs} shows a comparison between the mutual predictability measure and Pearson's correlation coefficient that were computed in the previous section. Again, the two y axes are overlaid in order to be able to display the full range of values computed for the data set. What is evident from the graph is that both measures succeed at quantifying a similar underlying feature of the signaling systems, and are consequently strongly related~(Spearman's $\rho=\Sexpr{round(correlation[3], 3)}$, $N=\Sexpr{nrow(alldata)}$).
+
+Still, two differences between the measures stick out: firstly, the mean mutual predictability spans a much smaller range of values with no clear 0 mark. Secondly, the difference between the measures is not consistent, with changes in compositionality between generations sometimes indicated by one measure, sometimes the other.
+
+Both differences can be illuminated by looking at a specific example: in particular, what's going on in the final generation of chain 7, where the mean mutual predictability jumps up while the correlation coefficient stays flat? Let's look at (part of) the data, as well as the segmentations:
+
+<<languages, results="asis">>=
+meaningcols <- c("Shape", "Number", "Color")
+dt <- subset(small, DiffusionChain == 7 & Generation >= 9)[,c(meaningcols, "Generation", "Form")]
+dt <- reshape(dt, direction="wide", idvar=meaningcols, timevar="Generation")
+knitr::kable(dt, caption="Part of the data", row.names=FALSE)
+@
+
+What can be seen in this data is that, while the language at generation 9 is itself not particularly effective at systematically distinguishing the meanings, the participant at generation 10 encodes the \emph{shape} dimension unambigously while conflating other meaning distinctions (in particular along the dimension of \emph{color}) almost completely.
+
+This change is not picked up by the Mantel test because the change in segments is only small and particularly, the relevant segment is only short so its impact is washed out by the unsystematic random stuff going on in the rest of the signal. This is a consequence of the fact that the test treats signals holisticically and therefore fails to isolate the effect of individual meaningful elements~\citep{Tamariz2008}.
+
+<<segmentationanalysis, results="asis", message=FALSE, cache=TRUE>>=
+twodotdotdot <- function(l)
+  if (length(l) > 3) c(l[1:2], '...') else l
+
+printsegmentation <- function(x, ...) {
+  x$p <- pvalue.str(x$p, digits=2, thresholds=c(.001, .01))
+  x$segments <- sapply(x$segments, function(segs)
+    paste('\\texttt{', twodotdotdot(segs), '}', sep='', collapse=', '))
+  print(xtable::xtable(x, digits=2, auto=TRUE, align=c('l', 'c', 'r', 'r', 'r', 'l'), ...),
+    math.style.exponents=TRUE, tabular.environment='tabularx',
+    sanitize.text.function=xtable::as.is, width='0.7\\textwidth',
+    sanitize.colnames.function=function(x) paste('\\textbf{', x, '}', sep=''))
+}
+printsegmentation(sm.segmentation(Form ~ Shape + Number + Color, subset(small, DiffusionChain == 7 & Generation == 9)), caption="Most highly mutually predictive segments for the meaning features in generation 9", label="tbl:gen9")
+
+#ssm.segmentation(Form ~ Shape + Number + Color, subset(small, DiffusionChain == 7 & Generation == 9))
+
+printsegmentation(sm.segmentation(Form ~ Shape + Number + Color, subset(small, DiffusionChain == 7 & Generation == 10)), caption="Most highly mutually predictive segments for the meaning features in generation 10", label="tbl:gen10")
+#ssm.segmentation(Form ~ Shape + Number + Color, subset(small, DiffusionChain == 7 & Generation == 10))
+@
+
+\section{Compositionality, systematicity, relative iconicity}\label{sec:iconicity}
+
+The Mantel test has also been used to measure systematicity in the lexicon, in other words, relative iconicity~\citep{Monaghan2014arbitrary}.
+Similarly, the methodology used to discover patterns in the co-occurrence of sounds and semantic concepts employed by~\citet{Blasi2016} is not unlike the mutual predictability measure presented in Section~\ref{sec:mp}.
+
+These similarities are not accidental, but point to the fact that compositionality is really just a more extreme version of relative iconicity. Both can be measured in the same way, the primary difference is how strongly we, as scientists, \emph{expect} the systematic patterns to be expressed in the domain in question.
+The assumption that monomorphemic lexical items should be completely arbitrary in their composition goes back to a long-established divide which put grammar on the side of natural patterns and the lexicon on the side of arbitrariness~\citep[ch.4]{Joseph2000}.
+
+%When we find systematicity somewhere where we expect it we call it compositionality, 
+`Compositionality' is systematicity where linguists have come to expect to find it, `relative iconicity' is systemeticity where we don't.
+
+
+``the sign still functions perfectly well as part of the language for a speaker who does not interpret it iconically. Sound-meaning iconicity does not impact upon the fundamental arbitrariness of the linguistic sign.''~\citep[p.93]{Joseph2015}.
+This critique can be better understood in light on the fact that iconicity is not so much a property of a linguistic \emph{sign}, which derives its arbitrary, conventional force from the speech community as a whole, but of its \emph{process of interpretation}, which is located in each individual.
+According to this view, iconicity effects are best construed as pertaining to the domain of \emph{processing} in the individual~\citep{Emmorey2014}.
+
+% \begin{table}
+% \def\arraystretch{1.5}
+% \begin{tabularx}{\textwidth}{c||p{0.25\textwidth}|p{0.25\textwidth}|p{0.25\textwidth}} % string-coverage
+% & \thead{r} & \thead{z score} & \thead{mp} \\
+% \hline
+% maximum value & 1 & variable\footnote{Depends on number of data points and distribution of string edit distances (which in turn depends on the composition of strings, size of alphabet etc).} & 1 \\
+% null value & 0 & 0 & system-dependent \\
+% significance & from null distribution & is a significance measure & ?\\
+% calculation & deterministic & randomised & deterministic \\ % heuristic for string coverage measures?
+% order-sensitive & \multicolumn{2}{c}{vaguely\footnote{depends on string distance function}} & no \\
+% \end{tabularx}
+% \caption{Overview of the measures and their properties.
+% The maximum and minimum value are representative of what the measures' values would be for the idealised signalling systems specified in Tables~\ref{tbl:examples}(a) and (b) respectively.}
+% \label{tbl:overview}
+% \end{table}
+
+\section{Conclusion}
+
+\bibliographystyle{apalike}
+\bibliography{../library}
+
+\end{document}
