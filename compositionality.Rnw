@@ -547,6 +547,6 @@ According to this view, iconicity effects are best construed as pertaining to th
 \section{Conclusion}
 
 \bibliographystyle{apalike}
-\bibliography{../library}
+\bibliography{references}
 
 \end{document}
