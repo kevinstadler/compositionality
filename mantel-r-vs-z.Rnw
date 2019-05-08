@@ -1,0 +1,282 @@
+\documentclass[a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{authblk}
+\usepackage{fullpage}
+\linespread{1.213}
+
+\title{The Mantel Test}
+\author{}
+\date{}
+
+\usepackage{subfig}
+%\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{makecell}
+\renewcommand\theadfont{\bfseries}
+\usepackage{multirow}
+
+\usepackage[hidelinks]{hyperref}
+\usepackage{doi}
+\usepackage{natbib}
+
+\usepackage{float}
+
+\begin{document}
+\maketitle
+
+The following sections are taken from: Kevin Stadler \& Matt Spike: \emph{Measures of compositionality for artificial language experiments} (in preparation).
+
+\section{Introduction}
+
+<<dependencies, eval=FALSE, include=FALSE>>=
+install.packages("xtable")
+install.packages("cultevo")
+
+install.packages("gdata")
+install.packages("rmarkdown")
+@
+
+<<setup, echo=FALSE, message=FALSE>>=
+knitr::opts_chunk$set(echo=FALSE, cache=TRUE, fig.align="center", fig.pos="htbp", fig.height=9.5)
+library(lattice)
+trellis.par.set("strip.background", list(alpha=1, col="white"))
+library(latticeExtra)
+
+#knitr::knit_hooks$set(crop=knitr::hook_pdfcrop)
+# dev.args=list(pointsize=10, family="serif")
+
+readdata <- function(filename) {
+  d <- gdata::read.xls(filename, header=TRUE, stringsAsFactors=FALSE)
+  d$Seen.0 <- -1 # complete cases with marked value
+  reshape(d, direction="long", timevar="Generation",
+    varying=do.call(function(...) paste(..., sep="."),
+      expand.grid(c("Form", "Seen"), 0:10)))
+}
+
+library(cultevo)
+# utils::adist
+testchains <- function(data, method="pearson", stringdistfun=normalisedlevenshteindists, trials=1000, ...)
+  lapply(unique(data$DiffusionChain), function(chain) {
+      m <- mantel.test(Form ~ Shape + Number + Color,
+        na.omit(subset(data, DiffusionChain == chain)), groups="Generation",
+        stringdistfun=stringdistfun, method=method, trials=trials, ...)
+      m$z <- (m$statistic - m$mean) / m$sd
+      m
+    })
+@
+
+<<data>>=
+small <- readdata("Supplemental_Data_Size12.xlsx")
+large <- readdata("Supplemental_Data_Size15.xlsx")
+@
+
+<<mantelpearson>>=
+smalltests <- testchains(small)
+largetests <- testchains(large)
+@
+
+<<mantelspearman>>=
+smalltestsspearman <- testchains(small, "spearman")
+largetestsspearman <- testchains(large, "spearman")
+@
+
+<<mantelkendall>>=
+smalltestskendall <- testchains(small, "kendall")
+largetestskendall <- testchains(large, "kendall")
+@
+
+The `measure of structure' made popular by \citet[p.10686]{Kirby2008} is very much in the spirit of Montague's definition of compositionality as a homomorphism between structured signal and meaning spaces. Crucially, this measure bypasses the question of how individual (simple) meanings map onto signals. Instead, it quantifies the regularity of the mapping between the internal structures of the signal and meaning spaces. %as measured by samples
+% based on pairwise distance correlation
+
+Assuming an experimental design in which a participant produces one signal for each of $n$~different (complex) meanings, one can construct two distance matrices of size $n\times n$. These matrices capture the pairwise distances between all of the attested signals and meanings according to some predefined distance metrics over strings and (complex) meanings respectively.
+
+Valid distance metrics will give rise to matrices which are symmetric, with $0$s along their diagonal. Based on these distances, one can then calculate the correlation between the $n\cdot(n-1)/2$ pairs of meaning and string distances on one side of the matrix' diagonal.
+
+As a first step, this correlation coefficient captures the degree to which \emph{pairs of meanings which are similar to each other} map onto \emph{pairs of signals which are similar to each other}.
+% versus the unlikely (and contrived) case of them 
+While the theoretical range of the coefficient is from -1 to 1, there is an additional problem in establishing whether an empirically determined level of correlation is in fact statistically significant. % given the underlying structures of each space
+The fact that the data points underlying its calculation are not independent~(the $n\cdot(n-1)/2$ pairs of values are derived from just $n$~signal-meaning pairs) means that there is potential for autocorrelation in the data and that the theoretical null distribution of the underlying correlation coefficient can not be used. To account for this, \citet{Kirby2008} fall back onto a correlation significance test based on randomising locations to determine spatial autocorrelation of measures in ecology~\citep[see][p.91 for an overview of its use in linguistics]{Cornish2011}.
+The basic idea is that, by repeatedly randomising the mapping from signals to meanings (equivalent to shuffling the columns and rows of one of the distance matrices in the same way) and calculating the respective correlations for these randomised distance matrices, one can generate an empirical null distribution of the correlation coefficient \emph{for that particular distance matrix}. Under the assumption that the randomised correlations are normally distributed, one can then determine a $z$ score for the actual correlation coefficient, which is nothing but the correlation coefficient's position relative to the randomised distribution expressed in standard deviations from its mean. This in turn can be used to get an estimate of the significance level of the established correlation, by determining the corresponding $p$ value based on the Normal distribution.
+
+This randomisation and computation of the $z$ score are really a second step to determine the \emph{significance} of the correlation coefficient obtained earlier.
+%i.e. whether the similarity is significantly stronger than would be expected by chance, and at what significance level.
+Nevertheless it is this z score, rather than the raw correlation, which has established itself as a measure of compositionality in analyses of artificial language learning tasks~\citep{Kirby2008,Carr2016,Beckner2017}. It should be stressed that the $z$ score is related to the \emph{significance level} of a measure, rather than expressing the \emph{effect size} of the measure itself. High $z$ scores therefore do not necessarily capture high \emph{levels} of compositionality, rather than high (statistical) confidence in the presence of \emph{some} level of compositionality~\citep[p.186]{Spike2016thesis}.
+
+\section{Analysis of the ILM data from \citet{Beckner2017}}
+
+To illustrate some of the properties of the Mantel test and its measures, we perform an in-depth analysis of the experimental data kindly provided by \citet{Beckner2017}. \citeauthor{Beckner2017}'s data is a replication of the classic iterated learning experiment setup of \citet{Kirby2008}.
+
+\subsection{Choice of correlation coefficient}
+
+One degree of freedom in performing the Mantel test that is not often discussed is the choice of correlation coefficient to use. Since \citet{Brighton2005}, Pearson's product-moment correlation coefficient has been the de-facto standard in the artificial language experiment literature even though its assumptions about the underlying data, in particular normally distributed values without ties, are not met by either the string nor the meaning distance data. For the meaning distance in particular it should be noted that with the experiment's fixed $3\times3\times3$ meaning space, and meaning distance being calculated as the number of dimensions in which two meaning combinations differ, the $27\cdot26/2=351$ pairwise meaning distances from which the correlation coefficient is computed can only take up one of three values, and their frequency is fully determined by the experimental design: $81$ meaning distances of $1$, $162$ of distance $2$ and $108$ of distance $3$.
+
+<<distributions>>=
+lastGen <- subset(large, DiffusionChain == 1 & Generation == 10)
+mDists <- as.vector(hammingdists(lastGen[,c('Shape', 'Number', 'Color')]))
+sDists <- as.vector(normalisedlevenshteindists(lastGen$Form))
+underlyingData <- data.frame(meaningDistance=mDists, stringDistance=sDists)
+
+methods <- c("pearson", "spearman", "kendall")
+coefficients <- sapply(methods, function(method) round(cor(mDists, sDists, method=method), 2))
+# , max=sapply(methods, function(method) cor(sort(mDists), 1:351, method=method)))
+@
+
+An example of the raw distance data to which the correlation coefficients are fit can be seen in Figure~\ref{fig:plotdistributions}. With the large amount of ties exhibited by the data one would expect that an ill-suited correlation measure might have a detrimental effect on the reliability of the results. But while the absolute size of Pearson's $r$ differs from those of other correlation coefficients accounting for ties, %(the example data plotted having a Pearson's $r=\Sexpr{coefficients['pearson']}$, Spearman's $\rho=\Sexpr{coefficients['spearman']}$, Kendall's $L=\Sexpr{coefficients['kendall']}$)
+the choice of coefficient does not appear to significantly affect the normalised $z$~scores computed from them (see the graphs in the appendix for an exhaustive comparison of different correlation coefficients).
+
+%and moreover contain a substantial amount of ties in the meaning distance.
+
+<<plotdistributions, fig.pos='H', cache=FALSE, fig.width=3, fig.height=3, fig.cap=paste("Example of the raw data that goes into the calculation of the correlation coefficient. Data shown is from the last generation of chain 1 of \\citet{Beckner2017}'s \\emph{large} (training size 15) condition. Data is jittered along the $x$ axis. The different correlation coefficients for this data set are Pearson's $r=", coefficients['pearson'], " $, Spearman's $\\rho=", coefficients['spearman'], "$, Kendall's $L=", coefficients['kendall'], "$.", sep="")>>=
+xyplot(stringDistance ~ meaningDistance, underlyingData, jitter.x=TRUE, col="black")
+@
+
+%particularly ill-suited
+%definitely not pearson (many ties in meaning distance, edit distances not normally distributed but strong edge effect at 0)
+\subsection{Comparison of raw correlation coefficient against normalised $z$ score}
+
+To illustrate the relationship between the raw signal/meaning distance correlations and the derived $z$~scores, Figure~\ref{fig:plotpearson} plots the two against each other for the total 24 chains (across two conditions) reported by \citet{Beckner2017} with computations based on the %25-27
+signal-meaning pairs available for each generation. What is striking is that the two measures align perfectly in the majority of cases. It should be noted that no effort has been made to scale the two $y$~axes to produce this overlap, including the near-perfect alignment of the $0$~marks. The alignment is simply a result of independently scaling each of the $y$~axes so that the range of plotted values covers the entire available plotting space. What this tells us is that when we are looking to compare signal-meaning space correlations between data sets that are identically sized data sets (as is the case in controlled experiments with a constant number of productions), the raw correlation measures are actually just as comparable between experiments as normalised $z$ scores.
+
+<<ranges, eval=FALSE>>=
+print(range(sapply(smalltests, function(m) m$statistic)))
+print(range(sapply(largetests, function(m) m$statistic)))
+print(range(sapply(smalltestsspearman, function(m) m$statistic)))
+print(range(sapply(largetestsspearman, function(m) m$statistic)))
+print(range(sapply(smalltestskendall, function(m) m$statistic)))
+print(range(sapply(largetestskendall, function(m) m$statistic)))
+@
+
+<<plotpearson, fig.pos='H', fig.height=6.1, cache=FALSE, fig.cap="Comparison of the $z$ score as derived from the distribution of $r$s for 1000 random permutations~(black line, left axis) plotted against the raw value of Pearson's~$r$~(gray line, right axis) for the 24 iterated learning chains run by \\citet{Beckner2017}. The dotted gray line indicates the baseline of the correlation coefficient ($r=0$) where there is no evidence for correlation (either positive or negative).">>=
+
+zrange <- range(sapply(c(smalltests, largetests), function(m) range(m$z)))
+rrange <- range(sapply(c(smalltests, largetests), function(m) range(m$statistic)))
+
+#rightcol <- "darkgray"#  abline(h=1.96, lty=2)
+
+#smalldata <- do.call(rbind, lapply(seq_along(smalltests), function(i) cbind(chain=i, smalltests[[i]])))
+#largedata <- do.call(rbind, lapply(seq_along(largetests), function(i) cbind(chain=i, largetests[[i]])))
+#smalldata$chain <- as.factor(smalldata$chain)
+#largedata$chain <- as.factor(largedata$chain)
+
+defaultscales <- list(x=list(tck=1:0, at=1:11, labels=c(1, "", 3, "", 5, "", 7, "", 9, "", 11), rot=0, alternating=1), y=list(alternating=3)) # axs="r"
+
+# padding = relative amount of padding on either end of range
+plotcomparison <- function(f1, f2, data, ylim1=c(NA, NA), ylim2=c(NA, NA), ylab="z score", ylab2="correlation coefficient", strip=FALSE, padding=0.05, ...) {
+  if (!is.data.frame(data)) {
+    data <- do.call(rbind, lapply(seq_along(data), function(i) cbind(chain=i, data[[i]])))
+    data$chain <- as.factor(data$chain)
+  }
+  ylim1 <- ylim1*(1+padding) - rev(ylim1)*padding
+  ylim2 <- ylim2*(1+padding) - rev(ylim2)*padding
+  z <- xyplot(f1, data, type="l", scales=defaultscales, ylim=ylim1, xlab="generation", ylab=ylab, strip=strip, as.table=TRUE, ...)
+  r <- xyplot(f2, data, type="l", ylim=ylim2, ylab=ylab2, as.table=TRUE,
+   panel = function(...) {
+  #     panel.grid()
+       panel.xyplot(...)
+       panel.abline(h=0, lty=3)
+   })
+  doubley <- doubleYScale(z, r, add.ylab2=TRUE)
+  update(doubley, par.settings = simpleTheme(col = c("black", "darkgray")))
+}
+
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, smalltests, zrange, rrange, main="small training data set condition", ylab2="Pearson's r"), split=c(1, 1, 1, 2), more=TRUE)
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, largetests, zrange, rrange, main="large training data set condition", ylab2="Pearson's r"), split=c(1, 2, 1, 2))
+@
+
+While the $z$~score transformation does not appear to affect the relative levels of compositionality much, it makes the absolute level of the measure both difficult to interpret as well as difficult to compare between experiments. As mentioned previously, the $z$~score really captures the significance level of the correlation, rather than the actual structure preserved by the signals' mapping between the form and meaning spaces. As a consequence, differences in the \emph{size of the test sets} obtained by different experimental designs or conditions -- or even by testing differences between generations -- can therefore have an adverse effect on the interpretability of the measure~\citep{Cornish2009}. To illustrate this point, Figure~\ref{fig:doublesize} shows the raw correlation as well as $z$~score for two data sets: the first is simply the data from one of the chains already plotted above~(chain~no.~2 in the `small' condition), while the measures in the central panel are based on a data set where, for every generation, each of the 27 signal-meaning pairs was duplicated. Data sets of this form occur in a variation of the iterated learning model where, instead of having just one learner per generation, there are two participants first learning the language system and then interacting. The output of one such generation of learners might therefore be not one but two tokens produced for every meaning combination. As a result, the correlation coefficient of such an experiment with doubled data size would be computed based on distance matrices of size $54\times54$. 
+
+<<doublemantel>>=
+pickchain <- 7
+onegrp <- subset(small, DiffusionChain == pickchain)
+
+dt <- rbind(cbind(size="single data", testchains(onegrp)[[1]]), cbind(size="doubled data", testchains(rbind(onegrp, onegrp))[[1]]), cbind(size="doubled data (adjusted)", testchains(rbind(onegrp, onegrp), omitzerodistances=TRUE)[[1]]))
+@
+
+<<doublesize, cache=FALSE, fig.height=2.2, fig.cap=paste("Comparison of the raw correlation and z score for the data set from iterated learning chain no.~", pickchain, " of the small learning data condition. Left: scores calculated from the original data set~(all pairwise distances between 27 signal-meaning pairs, $N=351$). Middle: scores calculated from a duplicated data set containing all signals twice~(all pairwise distances between 54 signal-meaning pairs, $N=1431$). Right: scores calculated from the duplicated data set under omission of pairs of signals from the distance matrix which have identical meaning components~($N=1404$).", sep=""), cache=FALSE>>=
+plotcomparison(z ~ group | size, statistic ~ group | size, dt, ylim1=range(dt$z), ylim2=1:2*range(dt$statistic), strip=TRUE) #+ as.layer(xyplot(sd ~ group | size, data=dt))
+@
+
+Despite the fact that both data sets specify the exact same mappings between forms and meanings (only with twice the amount of data in the latter case), the test results differ in two aspects:
+\begin{enumerate}
+\item Both the raw $r$ and z score exhibit a constant shift upwards from the 0 baseline.
+\item Moreover, the z score sees a linear boost (of about a factor of two) relative to the raw correlation coefficient.
+\end{enumerate}
+
+The latter effect is easily explained by what was just discussed: the randomised sample of correlation coefficients obtained from shuffling a larger data set of the same limited number of data points has a \emph{lower} standard deviation, which leads the normalised $z$~scores to exhibit a relative increase. This effect is expected (and desired) for a measure of significance, but not indicative of an actual increase in compositionality. This suggests that the $z$~score should be categorically avoided for drawing comparisons between compositionality levels of different-sized data sets.%, or  experimental designs.
+
+While the present analysis might suggest that the relationship between the raw correlation and the $z$~score is just be one of linear scaling, we can easily determine that this is not true: any correlation measure reaches its maximum value at~$1$, whereas the theoretical maximum value of the $z$~score increases as a function of its sample size (alongside other factors, in particular the pool of forms and meanings that the distance computations are based on). This same expansion of the $z$~score scale is also problematic at the lower end of the scale, where $z$~scores of greater than $1.96$ or $1.645$ (corresponding to the~$.05$ significance level for two-sided and one-sided significance tests respectively) have been adopted as a benchmark of compositionality. But particularly in combination with the fact that the distance metric approach underlying the Mantel Test does not allow one to pinpoint which individual segments map onto which individual meanings, and the vast pool of character sequences which are candidates for such mappings, \citet{Spike2016thesis} has highlighted the risk of type I errors:
+
+``[T]he Mantel score which is typically used to measure the compositionality of model and experimental data is potentially severely compromised when systems exhibit duality of patterning. As shown above, inevitable random correlations between form and meaning spaces result in highly significant, but reasonably small correlations even when systems are completely holistic.''~\citep[p.195]{Spike2016thesis}.
+%The main problem here is that recent studies have chosen to use not the correlation measure (Pearson’s r), but the significance (z-score) as the structural metric
+
+The other notable difference between the first two panels of Figure~\ref{fig:doublesize} is that not just the $z$~score, but also the raw correlation measure increases, with its attested minimum value for the given data set jumping from 0 to almost $0.2$. This is a consequence of the naive approach to increasing the amount of data by simply doubling all signal-meaning pairs: the pairwise comparison between the duplicated data points introduces pairs of 0 meaning and 0 string edit distances into the distance matrices, which inflates the consequent computation of the correlation coefficient. Crucially, the same issue arises in the analysis of experimental designs in which more than one data point is sampled for a given meaning combination, such as in the case of interacting participants. When the overall degree of compositionality is computed based on the productions of all participants pooled, identical productions by different participants would inflate the compositionality score when really they are an indication of the fact that the participants have successfully \emph{aligned} their communication systems. % see also Spike2016thesis ch.4 on individual vs. alignment entropy
+
+In order to disentangle the effects of convergence in multiple-participant designs from those of compositionality, some researchers have adjusted the computation of the correlation coefficient to exclude cells of the pairwise distance matrices which have a meaning distance of zero. %~(this can be seen as an extension of the not-sampling-the-diagonal rule)
+The resulting scores using this approach can be seen in the right-most panel of Figure~\ref{fig:doublesize}, showing that the raw correlation coefficients are indeed identical to the ones found in the original data set, while the $z$~scores are still relatively inflated.
+
+\section{Summary}
+
+The Mantel Test is a significance test for a minimum amount of compositionality \citep{Spike2016thesis} -- beyond that, using $z$ is unnecessary and confusing, just report $r$ -- its values and boundaries are much more well-understood.
+
+What to do with repeated measures for the same meaning combination is still an open question. Identical repeated data points inflate the measure, but does that mean that they should simply be excluded?
+
+A general problem of the test is that the distance measure for the string and meaning spaces needs to be defined in advance. While string edit distances are well defined, the individual contribution of the different meaning dimensions is not necessarily predictable, sometimes making it necessary to establish them post-hoc. % particularly tricky when mixing discrete and continuous meaning spaces?
+
+To some extent the same is true for the string distances also: the Mantel Test doesn't actually take the content of individual signals into account, and therefore has no means of expressing what the actual `segments' that are supposed to make up the compositional system are~\citep{Tamariz2008}.
+This approach is therefore also affected by uneven morpheme lengths or shared phonotactic material. Measured levels are also affected by orthogonal features of the communication systems such as the size of the character inventory etc.
+
+% TODO should be possible to construct a language which is not compositional yet still receives (rank) correlation 1?
+
+%Is it even necessary to do the randomisation, i.e. do we even need the random shuffling instead of just running a straightforward correlation test?
+
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\newpage
+\appendix
+\section*{Appendix: Comparison of results based on Pearson's, Spearman's and Kendall's correlation coefficients}
+
+<<plotspearman, fig.height=7, cache=FALSE, fig.cap="Relationship between raw correlation coefficient and $z$ score, using Spearman's $\\rho$ correlation coefficient.">>=
+zrange <- range(sapply(c(smalltestsspearman, largetestsspearman), function(m) range(m$z)))
+rrange <- range(sapply(c(smalltestsspearman, largetestsspearman), function(m) range(m$statistic)))
+
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, smalltestsspearman, zrange, rrange, main="small training data set condition", ylab2="Spearman's rho"), split=c(1, 1, 1, 2), more=TRUE)
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, largetestsspearman, zrange, rrange, main="large training data set condition", ylab2="Spearman's rho"), split=c(1, 2, 1, 2))
+@
+
+<<plotkendall, fig.height=7, cache=FALSE, fig.cap="Relationship between raw correlation coefficient and $z$ score, using Kendall's $L$ correlation coefficient.">>=
+zrange <- range(sapply(c(smalltestskendall, largetestskendall), function(m) range(m$z)))
+rrange <- range(sapply(c(smalltestskendall, largetestskendall), function(m) range(m$statistic)))
+
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, smalltestskendall, zrange, rrange, main="small training data set condition", ylab2="Kendall's L"), split=c(1, 1, 1, 2), more=TRUE)
+print(plotcomparison(z ~ group | chain, statistic ~ group | chain, largetestskendall, zrange, rrange, main="large training data set condition", ylab2="Kendall's L"), split=c(1, 2, 1, 2))
+@
+
+<<comparemeasures>>=
+smallData <- rbind(do.call(rbind, lapply(seq_along(smalltests), function(i) cbind(chain=i, condition=12, smalltests[[i]]))),
+  do.call(rbind, lapply(seq_along(smalltestsspearman), function(i) cbind(chain=i, condition=12, smalltestsspearman[[i]]))),
+  do.call(rbind, lapply(seq_along(smalltestskendall), function(i) cbind(chain=i, condition=12, smalltestskendall[[i]]))))
+
+largeData <- rbind(do.call(rbind, lapply(seq_along(largetests), function(i) cbind(chain=i, condition=15, largetests[[i]]))),
+  do.call(rbind, lapply(seq_along(largetestsspearman), function(i) cbind(chain=i, condition=15, largetestsspearman[[i]]))),
+  do.call(rbind, lapply(seq_along(largetestskendall), function(i) cbind(chain=i, condition=15, largetestskendall[[i]]))))
+
+smallData$chain <- as.factor(smallData$chain)
+smallData$method <- factor(smallData$method, levels=c("pearson", "spearman", "kendall"))
+largeData$chain <- as.factor(largeData$chain)
+largeData$method <- factor(largeData$method, levels=c("pearson", "spearman", "kendall"))
+@
+
+<<plotmeasures, cache=FALSE, fig.height=7, fig.cap="Comparison of the different correlation measures.">>=
+cols <- rainbow(3)
+print(xyplot(statistic ~ group | chain, smallData, groups=smallData$method, main="small training data set condition", type="l", scales=defaultscales, xlab="generation", ylab="correlation coefficient", strip=FALSE, as.table=TRUE, auto.key=TRUE), split=c(1, 1, 1, 2), more=TRUE)
+print(xyplot(statistic ~ group | chain, largeData, groups=largeData$method, main="large training data set condition", type="l", scales=defaultscales, xlab="generation", ylab="correlation coefficient", strip=FALSE, as.table=TRUE, auto.key=TRUE), split=c(1, 2, 1, 2))
+@
+
+<<plotzs, cache=FALSE, fig.height=7, fig.cap="Comparison of $z$ scores computed from the different correlation measures.">>=
+print(xyplot(z ~ group | chain, smallData, groups=smallData$method, main="small training data set condition", type="l", scales=defaultscales, xlab="generation", ylab="correlation coefficient", strip=FALSE, as.table=TRUE, auto.key=TRUE), split=c(1, 1, 1, 2), more=TRUE)
+print(xyplot(z ~ group | chain, largeData, groups=largeData$method, main="large training data set condition", type="l", scales=defaultscales, xlab="generation", ylab="correlation coefficient", strip=FALSE, as.table=TRUE, auto.key=TRUE), split=c(1, 2, 1, 2))
+@
+\end{document}
